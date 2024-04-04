@@ -1,0 +1,180 @@
+---
+title: "Untitled"
+author: "My H Pham"
+date: "2024-03-28"
+output: html_document
+---
+
+```{r}
+train <- read.csv("~/Desktop/Data 325/Project 2/train_static_cb_0.csv",stringsAsFactors = T)
+#When initializing a dataframe, pass stringsAsFactors = T in the initialization, this makes R treat the string values as factors
+```
+
+```{r}
+newtrain <- train
+newtrain[newtrain == ""] <- NA  
+newtrain
+```
+
+```{r}
+class(newtrain$for3years_128L)
+#You can only run levels on a factor vector, not on a data frame.
+#To see the level of every column in your data frame, you can use lapply
+#If the parameter is not a factor or a character vector, and it has a blank value, the levels() function will return NULL --> fill blank w NA
+newtrain$riskassesment_302T <- as.factor(newtrain$riskassesment_302T)
+levels(newtrain$riskassesment_302T)
+```
+
+
+```{r}
+##convert numeric to factor, using labels as factor levels
+library(sjmisc)
+library(sjstats)
+newtrain$riskassesment_302T <- to_label(newtrain$riskassesment_302T)
+default<-table(newtrain$riskassesment_302T)
+prop.table(default)
+```
+
+```{r}
+class(newtrain$riskassesment_302T)
+levels(newtrain$riskassesment_302T)
+library(dplyr)
+highdefault <- newtrain%>%filter(newtrain$riskassesment_302T =="59% - 66%" |newtrain$riskassesment_302T =="67% - 100%"| newtrain$riskassesment_302T =="50% - 58%" |newtrain$riskassesment_302T =="20% - 25%"| newtrain$riskassesment_302T =="26% - 33%"|newtrain$riskassesment_302T =="33% - 41%"|newtrain$riskassesment_302T =="41% - 49%")
+#highdefault <- newtrain%>%filter(newtrain$riskassesment_302T =="67% - 100%	")
+#highdefault <- newtrain%>%filter(newtrain$riskassesment_302T =="50% - 58%	")
+highdefault
+```
+
+```{r}
+levels(highdefault$riskassesment_302T)
+class(highdefault$riskassesment_302T)
+highdefault%>% filter(riskassesment_302T != " ")
+levels(highdefault$riskassesment_302T)
+```
+
+```{r}
+as.Date(highdefault$dateofbirth_337D)
+as.Date(highdefault$dateofbirth_342D)
+as.Date(highdefault$responsedate_1012D)
+dataframe= data.frame(highdefault)
+drop <- c("assignmentdate_4955616D","dateofbirth_337D","responsedate_1012D","responsedate_4527233D","responsedate_4917613D","birthdate_574D", "responsedate_4917613D","assignmentdate_238D","assignmentdate_4527235D")
+highdefault = highdefault[,!(names(dataframe) %in% "dateofbirth_342D")] 
+highdefault = highdefault[,!(names(dataframe) %in% "assignmentdate_238D")] 
+highdefault = highdefault[,!(names(dataframe) %in% drop)]
+highdefault
+str(highdefault)
+```
+
+
+```{r}
+library(lubridate)
+highdefault$maritalst_385M  <- as.factor(highdefault$maritalst_385M)
+highdefault$maritalst_893M <- as.factor(highdefault$maritalst_893M)
+
+levels(highdefault$riskassesment_302T)
+```
+
+```{r}
+highdefault[is.na(highdefault)] <- 0
+highdefault
+```
+
+```{r}
+person <- train_person_1
+person[person == ""] <- NA  
+person
+person = person[which(rowMeans(!is.na(person)) > 0.5), ]
+merging <- merge(highdefault, person,by="case_id")
+merging
+```
+
+```{r}
+merging$childnum_185L[is.na(merging$childnum_185L)] <- 0
+
+
+# Calculate the percentage of NA in each column
+na_percentage <- sapply(merging, function(x) mean(is.na(x))) * 100
+
+# Get the names of columns with more than 50% NA values
+columns_to_drop <- names(na_percentage[na_percentage > 75])
+
+# Drop these columns from the dataframe
+df_clean <- merging[, !(names(merging) %in% columns_to_drop)]
+
+# View the resulting dataframe
+str(df_clean)
+```
+```{r}
+# Convert all character columns in 'df_clean' to factors
+df_clean <- df_clean %>%
+  mutate_if(is.character, as.factor)
+str(df_clean)
+
+```
+
+```{r}
+# Convert the factor to a character and then to a Date object
+df_clean$empl_employedfrom_271D <- as.Date(as.character(df_clean$empl_employedfrom_271D), format="%Y-%m-%d")
+
+# Assuming you want the duration from the employment date to the current date
+# Calculate the difference in days
+current_date <- Sys.Date()
+df_clean$employment_duration_days <- as.numeric(difftime(current_date, df_clean$empl_employedfrom_271D, units = "days")) / 365.25
+# If there are NAs in your original date column, they will result in NAs in the duration column as well
+
+
+# Assuming 'df_clean' is your data frame and 'empl_employedfrom_271D' is your date factor column
+# Convert the factor to a character and then to a Date object
+df_clean$birth_259D <- as.Date(as.character(df_clean$birth_259D), format="%Y-%m-%d")
+
+# Calculate the duration in years from the employment date to the current date
+current_date <- Sys.Date()
+df_clean$age <- as.numeric(difftime(current_date, df_clean$birth_259D, units = "days")) / 365.25
+
+# The 365.25 accounts for leap years (365 days + 0.25 for the leap day every four years)
+
+```
+
+```{r}
+dataframe= data.frame(df_clean)
+drop <- c("registaddr_zipcode_184","registaddr_district_1083M","empladdr_zipcode_114M","empladdr_district_926M","contaddr_zipcode_807M", "contaddr_district_15M","riskassesment_940T","registaddr_zipcode_184M","case_id","birth_259D", "empl_employedfrom_271D")
+df_clean =df_clean[,!(names(dataframe) %in% drop)]
+df_clean
+```
+```{r}
+str(df_clean)
+```
+
+```{r}
+table(df_clean$riskassesment_302T)
+df_clean$riskassesment_302T <- droplevels(df_clean$riskassesment_302T)
+
+model2= randomForest(riskassesment_302T ~., data=df_clean, ntree=100, importance = TRUE, na.action=na.omit)
+
+# Extract variable importance
+importance_data2 <- as.data.frame(importance(model2))
+importance_data2$Variable <- rownames(importance_data2)
+
+# Plot variable importance using ggplot2
+ggplot(importance_data2, aes(x=reorder(Variable, MeanDecreaseGini), y=MeanDecreaseGini)) +
+  geom_bar(stat="identity") +
+  coord_flip() + # Flip the axes to make it horizontal
+  labs(title="Variable Importance in Random Forest Model",
+       x="Variable",
+       y="Importance (Mean Decrease in Gini)") +
+  theme_minimal()
+```
+```{r}
+varImpPlot(model2)
+```
+
+```{r}
+tree2 = rpart(riskassesment_302T ~., data = df_clean, control = rpart.control(cp = 0.001))
+rpart.plot(tree2, box.palette="Blues")
+```
+
+```{r}
+write.csv(df_clean, "df_clean.csv", row.names = TRUE)
+
+```
+

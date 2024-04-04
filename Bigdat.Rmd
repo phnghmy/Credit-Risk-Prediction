@@ -1,0 +1,158 @@
+---
+title: "Untitled"
+author: "My H Pham"
+date: "2024-03-27"
+output: html_document
+---
+
+```{r}
+train_static_0_0 <- read.csv("~/Desktop/Data 325/Project 2/train_static_0_0.csv")
+train_static_cb_0 <- read.csv("~/Desktop/Data 325/Project 2/train_static_cb_0.csv")
+```
+
+```{r}
+data.frame(train_static_0_0)
+data.frame(train_static_cb_0)
+bigdata <- merge(train_static_0_0, train_static_cb_0,by="case_id")
+bigdata
+```
+
+```{r}
+lowdefault <- bigdata
+lowdefault[lowdefault == ""] <- NA  
+lowdefault
+```
+```{r}
+lowdefault$riskassesment_302T=as.factor(lowdefault$riskassesment_302T)
+levels(lowdefault$riskassesment_302T)
+```
+
+```{r}
+lowdefault <- lowdefault%>%filter(lowdefault$riskassesment_302T =="1% - 1%" |lowdefault$riskassesment_302T =="2% - 2%"| lowdefault$riskassesment_302T =="2% - 3%" |lowdefault$riskassesment_302T =="3% - 4%"| lowdefault$riskassesment_302T =="4% - 6%"|lowdefault$riskassesment_302T =="6% - 8%"|lowdefault$riskassesment_302T =="8% - 11%"| lowdefault$riskassesment_302T =="11% - 15%"|lowdefault$riskassesment_302T =="15% - 19%")
+lowdefault
+```
+```{r}
+lowdefault <- data.frame(lapply(lowdefault, function(x) if(is.character(x)) factor(x) else x))
+
+# Calculate the percentage of NAs for each column
+na_percentage <- sapply(lowdefault, function(x) sum(is.na(x)) / length(x))
+
+# Identify columns that have more than 80% NA values
+columns_to_remove <- names(na_percentage[na_percentage > 0.5])
+
+# Remove those columns from the dataframe
+lowdefault <- lowdefault[, !(names(lowdefault) %in% columns_to_remove)]
+lowdefault
+```
+
+```{r}
+lowdefault = lowdefault[which(rowMeans(!is.na(lowdefault)) > 0.5), ]
+lowdefault
+```
+
+```{r}
+lowdefault[is.na(lowdefault)] <- 0
+lowdefault
+```
+```{r}
+str(lowdefault)
+```
+```{r}
+# Convert the factor to a character and then to a Date object
+lowdefault$lastrejectdate_50D <- as.Date(as.character(lowdefault$lastrejectdate_50D), format="%Y-%m-%d")
+
+# Assuming you want the duration from the employment date to the current date
+# Calculate the difference in days
+current_date <- Sys.Date()
+lowdefault$lastrejectdate_50D <- as.numeric(difftime(current_date, lowdefault$lastrejectdate_50D, units = "days")) / 365.25
+# If there are NAs in your original date column, they will result in NAs in the duration column as well
+
+
+# Assuming 'lowdefault' is your data frame and 'empl_employedfrom_271D' is your date factor column
+# Convert the factor to a character and then to a Date object
+lowdefault$lastapprdate_640D  <- as.Date(as.character(lowdefault$lastapprdate_640D ), format="%Y-%m-%d")
+
+# Calculate the duration in years from the employment date to the current date
+current_date <- Sys.Date()
+lowdefault$lastapprdate_640D <- as.numeric(difftime(current_date, lowdefault$lastapprdate_640D , units = "days")) / 365.25
+
+# The 365.25 accounts for leap years (365 days + 0.25 for the leap day every four years)
+
+lowdefault$lastapplicationdate_877D <- as.Date(as.character(lowdefault$lastapplicationdate_877D), format="%Y-%m-%d")
+
+current_date <- Sys.Date()
+lowdefault$lastapplicationdate_877D <- as.numeric(difftime(current_date, lowdefault$lastapplicationdate_877D, units = "days")) / 365.25
+
+
+
+lowdefault$lastactivateddate_801D <- as.Date(as.character(lowdefault$lastactivateddate_801D), format="%Y-%m-%d")
+
+current_date <- Sys.Date()
+lowdefault$lastactivateddate_801D <- as.numeric(difftime(current_date, lowdefault$lastactivateddate_801D, units = "days")) / 365.25
+
+
+lowdefault$firstdatedue_489D <- as.Date(as.character(lowdefault$firstdatedue_489D), format="%Y-%m-%d")
+
+current_date <- Sys.Date()
+lowdefault$firstdatedue_489D <- as.numeric(difftime(current_date, lowdefault$firstdatedue_489D, units = "days")) / 365.25
+
+lowdefault$birthdate_574D <- as.Date(as.character(lowdefault$birthdate_574D), format="%Y-%m-%d")
+
+current_date <- Sys.Date()
+lowdefault$birthdate_574D <- as.numeric(difftime(current_date, lowdefault$birthdate_574D, units = "days")) / 365.25
+
+lowdefault$responsedate_1012D <- as.Date(as.character(lowdefault$responsedate_1012D), format="%Y-%m-%d")
+
+current_date <- Sys.Date()
+lowdefault$responsedate_1012D <- as.numeric(difftime(current_date, lowdefault$responsedate_1012D, units = "days")) / 365.25
+```
+
+```{r}
+lowdefault
+```
+```{r}
+lowdefault <- na.omit(lowdefault)
+View(lowdefault)
+```
+
+```{r}
+levels(lowdefault$riskassesment_302T)
+lowdefault$riskassesment_302T <- droplevels(lowdefault$riskassesment_302T)
+```
+```{r}
+str(lowdefault)
+```
+
+```{r}
+library(randomForest)
+drop <- c("previouscontdistrict_112M","dateofbirth_337D","riskassesment_940T","case_id","numberofqueries_373L" )
+lowdefault =lowdefault[,!(names(lowdefault) %in% drop)]
+
+##CHECK WHICH COL HAS MORE THAN 53 LEVELS
+for (col_name in names(lowdefault)) {
+  if (is.factor(lowdefault[[col_name]])) {
+    num_levels <- nlevels(lowdefault[[col_name]])
+    if (num_levels > 53) {
+      cat(col_name, "has", num_levels, "levels\n")
+    }
+  }
+}
+model= randomForest(riskassesment_302T ~., data=lowdefault, ntree=100)
+
+varImpPlot(model)
+# Extract variable importance
+importantvar <- as.data.frame(importance(model))
+importantvar$Variable <- rownames(importantvar)
+
+# Plot variable importance using ggplot2
+ggplot(importantvar, aes(x=reorder(Variable, MeanDecreaseGini), y=MeanDecreaseGini)) +
+  geom_bar(stat="identity") +
+  coord_flip() + # Flip the axes to make it horizontal
+  labs(title="Variable Importance in Random Forest Model",
+       x="Variable",
+       y="Importance (Mean Decrease in Gini)") +
+  theme_minimal()
+```
+
+
+
